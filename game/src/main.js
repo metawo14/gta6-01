@@ -27,7 +27,7 @@ export class Game {
     this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.6));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.toneMappingExposure = 1.42;
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(62, 16 / 9, 0.1, 1200);
     this.clock = new THREE.Clock();
@@ -496,7 +496,10 @@ export class Game {
     const raw = (now - this.last) / 1000;
     this.last = now;
     const dt = Math.min(0.05, Math.max(0.0005, raw));
-    if (this.mode === 'play') this.tick(dt);
+    if (this.shot) {
+      // A staged screenshot is a frozen frame: no simulation, just the pose shots.js set up.
+      this.world.ramp(dt, this.camera);
+    } else if (this.mode === 'play') this.tick(dt);
     else this.idleTick(dt);
     this.renderer.render(this.scene, this.camera);
     this.input.endFrame();
@@ -602,7 +605,7 @@ export class Game {
     this.audio.tickMusic(dt, this.police.stars);
 
     this.updateCamera(dt);
-    this.world.ramp(this.scene, dt);
+    this.world.ramp(dt, this.camera);
     this.hud.update(dt, {
       player: this.player,
       police: this.police,
@@ -638,8 +641,8 @@ export class Game {
     if (!shot) return;
     this.mode = 'play';
     this.hideOverlay();
-    this.shot = applyShot(this, shot);
     window.__shotReady = false;
+    this.shot = applyShot(this, shot);
   }
 }
 

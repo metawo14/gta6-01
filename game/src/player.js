@@ -109,6 +109,8 @@ export class Player {
     this.reloading = 0;
     this.fireCooldown = 0;
     this.root.visible = true;
+    this.root.position.set(x, 0, z);
+    this.root.rotation.y = heading;
   }
 
   get position() {
@@ -199,6 +201,8 @@ export class Player {
 
   show() {
     this.root.visible = true;
+    this.root.position.set(x, 0, z);
+    this.root.rotation.y = heading;
   }
 }
 
