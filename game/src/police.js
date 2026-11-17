@@ -31,7 +31,9 @@ export class Police {
   }
 
   addStars(n) {
+    const before = this.stars;
     this.setStars(this.stars + n);
+    if (this.stars > before) this.audio.wantedUp();
   }
 
   clear() {
@@ -55,13 +57,10 @@ export class Police {
     this.units.push({ car, state: 'chase', arrest: 0, id: this.units.length });
   }
 
+  // Decay and spawning. Stars are raised by the game's crime feed (main.js reportCrimes),
+  // never here, so one crime raises the level exactly once.
   wanted(dt, player, crimes) {
-    if (crimes.length > 0) {
-      for (const c of crimes) {
-        this.heat = 0;
-        if (c.stars) this.addStars(c.stars);
-      }
-    }
+    if (crimes.length > 0) this.heat = 0;
     if (this.stars > 0) {
       const policeNear = this.units.some((u) => Math.hypot(u.car.pos.x - player.pos.x, u.car.pos.z - player.pos.z) < 55);
       if (!policeNear && crimes.length === 0) {

@@ -315,7 +315,7 @@ export class VehicleManager {
       const d = Math.hypot(prop.x - car.pos.x, prop.z - car.pos.z);
       if (d < prop.r + spec.width * 0.5 && Math.abs(car.vel.length()) > 3) {
         hitSpeed = Math.max(hitSpeed, car.vel.length());
-        prop.mesh.visible = false;
+        if (prop.mesh) prop.mesh.visible = false;
         prop.r = 0.001;
         car.vel.multiplyScalar(0.82);
       }

@@ -119,6 +119,7 @@ export class Missions {
     this.clearTarget();
     this.setupMarker();
     if (this.current.id === 'payback') this.spawnTarget();
+    if (this.current.id === 'hot-package') this.spawnPackage();
   }
 
   setupMarker() {
@@ -153,6 +154,25 @@ export class Missions {
     this.scene.add(this.packageMesh);
   }
 
+  // The briefcase the player collects on job three, sitting on its marker.
+  spawnPackage() {
+    if (this.packageMesh) this.scene.remove(this.packageMesh);
+    const crate = new THREE.Mesh(
+      new THREE.BoxGeometry(1.05, 0.78, 1.05),
+      new THREE.MeshStandardMaterial({ color: 0x3a5f4c, roughness: 0.5, metalness: 0.2 }),
+    );
+    crate.position.set(this.marker.x, 0.9, this.marker.z);
+    this.scene.add(crate);
+    this.packageMesh = crate;
+    const glow = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.4, 1.9, 8, 12, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0x9dffe8, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false }),
+    );
+    glow.position.set(this.marker.x, 4.2, this.marker.z);
+    this.scene.add(glow);
+    this.packageGlow = glow;
+  }
+
   clearTarget() {
     if (this.target) {
       this.vehicles.remove(this.target);
@@ -161,6 +181,10 @@ export class Missions {
     if (this.packageMesh) {
       this.scene.remove(this.packageMesh);
       this.packageMesh = null;
+    }
+    if (this.packageGlow) {
+      this.scene.remove(this.packageGlow);
+      this.packageGlow = null;
     }
   }
 
@@ -187,6 +211,10 @@ export class Missions {
           this.picked = true;
           this.scene.remove(this.packageMesh);
           this.packageMesh = null;
+          if (this.packageGlow) {
+            this.scene.remove(this.packageGlow);
+            this.packageGlow = null;
+          }
           this.audio.pickup();
           this.setMarker(150, 190);
           this.step = 1;
@@ -214,6 +242,7 @@ export class Missions {
     this.beacon.visible = false;
     this.clearTarget();
     this.banner = { kind: 'complete', text: `${mission.name} — COMPLETE`, sub: `+$${mission.reward}`, timer: 4 };
+    if (this.onReward) this.onReward(mission.reward);
     this.audio.missionComplete();
     if (mission.stars) {
       // Mission crime heat cools when the job closes.

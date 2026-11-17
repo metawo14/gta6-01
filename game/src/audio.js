@@ -12,6 +12,20 @@ export class Audio {
     this.step = 0;
   }
 
+  // Browsers only let a page make sound after a gesture, so the context is created on the
+  // first key or click rather than at load. Nothing plays before that.
+  armOnGesture() {
+    if (this.armed) return;
+    this.armed = true;
+    const go = () => {
+      this.start();
+      window.removeEventListener('pointerdown', go);
+      window.removeEventListener('keydown', go);
+    };
+    window.addEventListener('pointerdown', go);
+    window.addEventListener('keydown', go);
+  }
+
   start() {
     if (this.started) return;
     const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -75,7 +89,7 @@ export class Audio {
   }
 
   setEngine(speedRatio, throttle) {
-    if (!this.engine) return;
+    if (!this.engine || this.muted) return;
     const target = throttle ? 0.18 : 0.1;
     const freq = 52 + speedRatio * 190;
     this.engine.osc.frequency.setTargetAtTime(freq, this.ctx.currentTime, 0.08);

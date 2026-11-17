@@ -201,6 +201,17 @@ export class Player {
 
   show() {
     this.root.visible = true;
+    this.root.position.set(this.pos.x, this.y, this.pos.z);
+    this.root.rotation.y = this.heading;
+  }
+
+  // Called when the player leaves a car: the figure reappears beside it.
+  placeAt(x, z, heading) {
+    this.pos.set(x, 0, z);
+    this.vel.set(0, 0, 0);
+    this.y = 0;
+    this.vy = 0;
+    this.heading = heading;
     this.root.position.set(x, 0, z);
     this.root.rotation.y = heading;
   }

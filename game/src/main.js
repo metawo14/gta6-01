@@ -46,6 +46,10 @@ export class Game {
     this.police = new Police(this.scene, this.world, this.vehicles, this.audio, this.rng);
     this.traffic = new Traffic(this.scene, this.world, this.vehicles, this.rng);
     this.missions = new Missions(this.scene, this.world, this.vehicles, this.police, this.audio, this.traffic);
+    this.missions.onReward = (amount) => {
+      this.cash += amount;
+      this.saveGame(false);
+    };
     this.hud = new Hud(this.ui);
 
     this.cash = PLAYER.startCash;
@@ -170,7 +174,7 @@ export class Game {
   }
 
   startGame(useSave) {
-    this.audio.start();
+    this.audio.armOnGesture();
     this.mode = 'play';
     this.hideOverlay();
     if (useSave && this.save) this.loadGame();
@@ -180,9 +184,16 @@ export class Game {
       this.police.setStars(0);
       this.missions.start(0);
     }
-    if (this.canvas.requestPointerLock) {
-      try { this.canvas.requestPointerLock(); } catch { /* drag fallback stays */ }
-    }
+    this.lockPointer();
+  }
+
+  // Pointer lock needs a user gesture and returns a promise in current Chrome: swallow the
+  // rejection and keep the drag-to-look fallback working.
+  lockPointer() {
+    try {
+      const p = this.canvas.requestPointerLock?.();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch { /* drag fallback */ }
   }
 
   pause() {
@@ -205,9 +216,8 @@ export class Game {
   resume() {
     this.mode = 'play';
     this.hideOverlay();
-    if (this.canvas.requestPointerLock) {
-      try { this.canvas.requestPointerLock(); } catch { /* ignore */ }
-    }
+    if (this.audio.ctx?.state === 'suspended') this.audio.ctx.resume();
+    this.lockPointer();
   }
 
   restart() {
@@ -222,7 +232,7 @@ export class Game {
   }
 
   busted() {
-    if (this.mode !== 'play') return;
+    if (this.mode !== 'play' && this.mode !== 'paused') return;
     this.mode = 'busted';
     this.audio.busted();
     this.police.setStars(0);
@@ -256,6 +266,8 @@ export class Game {
     this.player.health = PLAYER.maxHealth;
     this.player.vel.set(0, 0, 0);
     this.player.pos.set(150, 0.2, -150);
+    this.player.placeAt(150, -150, 0);
+    this.player.show();
     this.player.y = 0;
     this.player.vy = 0;
     this.police.clear();
@@ -360,8 +372,7 @@ export class Game {
       this.player.inCar = null;
       car.driver = null;
       car.vel.multiplyScalar(0.2);
-      this.player.pos.set(p.x, 0, p.z);
-      this.player.heading = car.heading;
+      this.player.placeAt(p.x, p.z, car.heading);
       this.player.show();
       this.audio.silenceEngine();
       return;
@@ -378,17 +389,29 @@ export class Game {
     this.player.hide();
     this.player.input = this.input;
     this.player.pos.set(car.pos.x, 0, car.pos.z);
-    this.audio.start();
     this.audio.blip(560, 0.1);
   }
 
+  // Record a crime for this tick. police.wanted() raises the stars exactly once, so a crime
+  // committed and then read back in the same frame never counts double.
   crime(evt) {
-    this.crimes.push({ stars: evt.stars ?? 0, label: evt.label ?? 'Crime', at: this.time });
-    if (evt.stars) {
-      this.police.addStars(evt.stars);
-      this.audio.wantedUp();
+    const event = { stars: evt.stars ?? 0, label: evt.label ?? 'Crime', at: this.time };
+    this.crimes.push(event);
+    if (evt.label) this.lastCrime = event.label;
+    return event;
+  }
+
+  // The stable "wanted" responder: crimes reported this tick, collapsed to at most one
+  // star-step per second so a pile-up does not jump straight to five stars.
+  reportCrimes(dt) {
+    this.reportCooldown = Math.max(0, (this.reportCooldown ?? 0) - dt);
+    let stars = 0;
+    for (const c of this.crimes) stars = Math.max(stars, c.stars);
+    if (stars > 0 && this.reportCooldown <= 0) {
+      this.reportCooldown = 1.1;
+      this.police.addStars(stars);
     }
-    if (evt.x !== undefined) this.player.health -= evt.damage ?? 0;
+    this.police.wanted(dt, this.player, this.crimes);
   }
 
   fire() {
@@ -563,13 +586,13 @@ export class Game {
     if (car && car.wrecked) {
       this.player.inCar = null;
       car.driver = null;
-      this.player.pos.set(car.pos.x, 0, car.pos.z);
+      this.player.placeAt(car.pos.x, car.pos.z, car.heading);
       this.player.show();
       this.wasted();
       return;
     }
 
-    this.police.wanted(dt, this.player, this.crimes);
+    this.reportCrimes(dt);
     this.police.update(dt, this.player, () => this.busted(), () => this.wasted());
 
     if (this.player.health <= 0) {
