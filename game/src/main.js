@@ -27,7 +27,7 @@ export class Game {
     this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.6));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.42;
+    this.renderer.toneMappingExposure = 1.5;
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(62, 16 / 9, 0.1, 1200);
     this.clock = new THREE.Clock();

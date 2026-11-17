@@ -110,8 +110,9 @@ export class World {
     this.scene.add(this.sky);
     this.scene.fog = new THREE.Fog(PALETTE.fog, 110, 470);
 
-    this.scene.add(new THREE.HemisphereLight(0x9db2dd, 0x5a4436, 1.25));
-    const sun = new THREE.DirectionalLight(PALETTE.sun, 2.3);
+    this.hemi = new THREE.HemisphereLight(0x9db2dd, 0x5a4436, 1.25);
+    this.scene.add(this.hemi);
+    const sun = new THREE.DirectionalLight(PALETTE.sun, 2.75);
     sun.position.set(-150, 74, 180);
     this.scene.add(sun);
     this.sun = sun;
@@ -119,7 +120,8 @@ export class World {
     rim.position.set(120, 40, -160);
     this.scene.add(rim);
     this.rim = rim;
-    this.scene.add(new THREE.AmbientLight(0x51587a, 1.05));
+    this.ambient = new THREE.AmbientLight(0x5b6288, 1.15);
+    this.scene.add(this.ambient);
   }
 
   buildGround() {
@@ -191,6 +193,7 @@ export class World {
       new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, metalness: 0.14 }),
     );
     this.windowBatch = new Batch(QUAD, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.95 }));
+    this.baseBatch = new Batch(BOX, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95 }));
     this.roofBatch = new Batch(
       BOX,
       new THREE.MeshStandardMaterial({ color: 0x2b2e3a, roughness: 0.92 }),
@@ -233,6 +236,7 @@ export class World {
   addBuilding(px, pz, w, d, h) {
     const tint = this.rng.pick(PALETTE.buildingTints);
     this.bodyBatch.box(px, h / 2 + 0.26, pz, w, h, d, tint);
+    this.baseBatch.box(px, 0.9, pz, w + 0.5, 1.4, d + 0.5, 0x2a2c38);
 
     const rows = Math.max(1, Math.floor((h - 3) / 4.0));
     const colsX = Math.max(2, Math.floor(w / 3.0));
@@ -417,6 +421,7 @@ export class World {
     this.laneBatch.build(this.group);
     this.walkBatch.build(this.group);
     this.bodyBatch.build(this.group);
+    this.baseBatch.build(this.group);
     this.windowBatch.build(this.group);
     this.roofBatch.build(this.group);
     this.neonBatch.build(this.group);

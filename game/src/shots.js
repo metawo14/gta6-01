@@ -232,13 +232,18 @@ function stageMission(game) {
 
 function stageNight(game) {
   // Night driving: headlights down a wet avenue, stars on, cruiser behind, full HUD.
-  game.world.sky.material.uniforms.top.value.setHex(0x04060e);
-  game.world.sky.material.uniforms.horizon.value.setHex(0x152a44);
-  game.world.sky.material.uniforms.glow.value.setHex(0x2c5a86);
-  game.scene.fog.color.setHex(0x0a1420);
-  game.world.sun.intensity = 0.3;
-  game.world.sun.color.setHex(0x5c7fb0);
-  game.world.rim.intensity = 0.35;
+  game.world.sky.material.uniforms.top.value.setHex(0x060a16);
+  game.world.sky.material.uniforms.horizon.value.setHex(0x1f3f63);
+  game.world.sky.material.uniforms.glow.value.setHex(0x3b6f9e);
+  game.scene.fog.color.setHex(0x1a2b42);
+  game.world.sun.intensity = 0.95;
+  game.world.sun.color.setHex(0x6f92c4);
+  game.world.rim.intensity = 0.55;
+  game.world.hemi.intensity = 1.7;
+  game.world.hemi.color.setHex(0x6f8ec0);
+  game.world.hemi.groundColor.setHex(0x3a3350);
+  game.world.ambient.intensity = 1.5;
+  game.world.ambient.color.setHex(0x4a5170);
   game.clockMinutes = 22 * 60 + 20;
 
   const road = gridLine(6);
@@ -253,14 +258,14 @@ function stageNight(game) {
     blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
   });
   for (const sx of [-0.55, 0.55]) {
-    const cone = new THREE.Mesh(new THREE.ConeGeometry(2.6, 17, 12, 1, true), beamMat);
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(2.0, 10.5, 12, 1, true), beamMat);
     cone.rotation.z = Math.PI / 2;
     cone.rotation.y = Math.PI / 2;
-    cone.position.set(sx, 0.72, 10.5);
+    cone.position.set(sx, 0.72, 6.8);
     hero.mesh.add(cone);
   }
 
-  const cruiser = placeCar(game, 'police', 0x1b2a44, -13, road + 3.6, heading, 22);
+  const cruiser = placeCar(game, 'police', 0x1b2a44, -18.5, road + 7.0, heading, 22);
   cruiser.driver = 'police';
   game.police.units.push({ car: cruiser, state: 'chase', arrest: 0 });
   game.police.stars = 2;
@@ -270,10 +275,10 @@ function stageNight(game) {
   game.missions.index = 3;
   game.missions.state = 'active';
   game.missions.step = 0;
-  game.missions.setMarker(-160, road + 3.4);
+  game.missions.setMarker(-92, road + 3.4);
   game.missions.beacon.visible = true;
 
-  frameCamera(game, [-46, 3.1, road - 1.0], [-24, 1.35, road + 3.4], 58);
+  frameCamera(game, [-5, 3.3, road - 9.0], [-34, 1.35, road + 2.5], 60);
 
   return {
     ticks: 22,
