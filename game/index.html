@@ -3,16 +3,149 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Block Dodger</title>
+<title>PORT MERIDIAN — an open-world crime game</title>
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #11141b; }
-  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  /* Read aloud, never shown: the status line screen readers announce. */
+  :root {
+    --neon: #54e6c8;
+    --neon-dim: #2b7d6d;
+    --hot: #ff4d6d;
+    --amber: #ffc23d;
+    --ink: #0b0f14;
+    --panel: rgba(8, 13, 20, 0.86);
+    --line: rgba(84, 230, 200, 0.28);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden; background: #05070c; color: #e8eef5;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    user-select: none; -webkit-user-select: none;
+  }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
   #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  #ui { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  #ui.hidden { display: none; }
+
+  #hud-top { position: absolute; top: 18px; left: 18px; right: 18px; display: flex; justify-content: space-between; align-items: flex-start; }
+  #hud-left { display: flex; flex-direction: column; gap: 8px; }
+  #health-wrap {
+    position: relative; width: 210px; height: 22px; background: rgba(5, 9, 14, 0.8);
+    border: 1px solid var(--line); border-radius: 3px; overflow: hidden;
+  }
+  #health-bar { height: 100%; width: 100%; background: var(--neon); transition: width 0.16s linear, background 0.2s; }
+  #health-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-shadow: 0 1px 3px #000; }
+  #cash-row { font-size: 26px; font-weight: 800; letter-spacing: 0.04em; color: #eafff8; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9); }
+  #cash-row .muted { font-size: 11px; letter-spacing: 0.2em; color: var(--neon); vertical-align: middle; margin-right: 6px; }
+  #stars { display: flex; gap: 2px; font-size: 24px; line-height: 1; }
+  #stars .star { color: rgba(255, 255, 255, 0.16); text-shadow: 0 2px 6px #000; }
+  #stars .star.on { color: var(--amber); text-shadow: 0 0 12px rgba(255, 194, 61, 0.8); }
+  #stars .star.on.pulse { color: #fff3c4; }
+
+  #hud-right { text-align: right; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+  #clock { font-size: 20px; font-weight: 700; letter-spacing: 0.1em; color: #cfe6ff; text-shadow: 0 2px 8px #000; }
+  #weapon {
+    font-size: 12px; letter-spacing: 0.14em; padding: 6px 10px; border: 1px solid var(--line);
+    background: rgba(5, 9, 14, 0.7); border-radius: 3px;
+  }
+  #weapon #ammo { color: var(--neon); font-weight: 700; }
+
+  #objective {
+    position: absolute; left: 50%; top: 18px; transform: translateX(-50%);
+    min-width: 320px; max-width: 46vw; text-align: center; padding: 9px 18px;
+    background: var(--panel); border: 1px solid var(--line); border-top: 2px solid var(--neon);
+    border-radius: 3px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  }
+  #obj-name { font-size: 11px; letter-spacing: 0.22em; color: var(--neon); font-weight: 700; }
+  #obj-step { font-size: 16px; font-weight: 600; margin-top: 3px; color: #f2f7ff; }
+
+  #map-wrap { position: absolute; right: 18px; bottom: 18px; }
+  #minimap { display: block; border-radius: 6px; box-shadow: 0 8px 26px rgba(0, 0, 0, 0.7); }
+  #map-label {
+    position: absolute; left: 0; right: 0; bottom: 6px; text-align: center;
+    font-size: 9px; letter-spacing: 0.3em; color: rgba(84, 230, 200, 0.75);
+  }
+
+  #speedo {
+    position: absolute; left: 20px; bottom: 18px; display: flex; align-items: baseline; gap: 6px;
+    opacity: 0; transition: opacity 0.2s;
+  }
+  #speedo.on { opacity: 1; }
+  #speed-val { font-size: 56px; font-weight: 800; line-height: 0.9; color: #f2fbff; text-shadow: 0 4px 20px rgba(84, 230, 200, 0.35); }
+  #speed-unit { font-size: 11px; letter-spacing: 0.2em; color: var(--neon); }
+  #gear { font-size: 16px; font-weight: 800; margin-left: 8px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 3px; }
+
+  #prompt {
+    position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%);
+    padding: 8px 16px; background: rgba(5, 9, 14, 0.8); border: 1px solid var(--line);
+    border-radius: 3px; font-size: 13px; letter-spacing: 0.08em; color: #d8f5ee;
+    white-space: nowrap;
+  }
+  #prompt:empty { display: none; }
+
+  #banner {
+    position: absolute; left: 50%; top: 34%; transform: translate(-50%, -10px) scale(0.98);
+    text-align: center; opacity: 0; transition: opacity 0.25s, transform 0.25s;
+    padding: 18px 46px; background: rgba(6, 12, 18, 0.85); border-top: 2px solid var(--neon);
+    border-bottom: 2px solid var(--neon);
+  }
+  #banner.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  #banner strong { display: block; font-size: 30px; letter-spacing: 0.16em; color: #eafff8; }
+  #banner span { display: block; margin-top: 6px; font-size: 18px; color: var(--amber); letter-spacing: 0.1em; }
+  #banner.fail { border-color: var(--hot); }
+
+  #vignette {
+    position: absolute; inset: 0; opacity: 0; transition: opacity 0.18s;
+    background: radial-gradient(ellipse at center, rgba(120, 0, 10, 0) 42%, rgba(150, 8, 20, 0.75) 100%);
+  }
+
+  #overlay {
+    position: fixed; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at 50% 40%, rgba(10, 18, 28, 0.72), rgba(3, 5, 9, 0.94));
+    backdrop-filter: blur(3px);
+  }
+  #overlay.show { display: flex; }
+  .panel {
+    width: min(760px, 88vw); padding: 34px 42px; background: var(--panel);
+    border: 1px solid var(--line); border-top: 3px solid var(--neon); border-radius: 4px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
+  }
+  .panel h1 {
+    margin: 6px 0 12px; font-size: 68px; line-height: 0.92; letter-spacing: 0.06em;
+    font-weight: 800; color: #f4fbff;
+    text-shadow: 0 0 26px rgba(84, 230, 200, 0.35), 0 6px 30px rgba(0, 0, 0, 0.8);
+  }
+  .panel h1 em { font-style: normal; color: var(--neon); }
+  .panel h2 { margin: 0 0 12px; font-size: 44px; letter-spacing: 0.2em; font-weight: 800; }
+  .panel .kicker { font-size: 11px; letter-spacing: 0.34em; color: var(--neon); }
+  .panel .story { font-size: 15px; line-height: 1.62; color: #b9c8d8; margin: 0 0 18px; max-width: 62ch; }
+  .panel .controls {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px 18px;
+    padding: 14px 0 4px; border-top: 1px solid rgba(255, 255, 255, 0.09); font-size: 12.5px; color: #9fb2c6;
+  }
+  .panel .controls b { color: #eafff8; }
+  .panel .best { font-size: 12px; letter-spacing: 0.12em; color: var(--amber); margin-top: 12px; }
+  .panel .buttons { display: flex; gap: 12px; margin-top: 22px; }
+  .panel button {
+    pointer-events: auto; cursor: pointer; padding: 12px 30px; font-size: 14px; font-weight: 800;
+    letter-spacing: 0.18em; color: #04100d; background: var(--neon); border: 0; border-radius: 3px;
+    font-family: inherit;
+  }
+  .panel button:hover { background: #7ff5dd; }
+  .panel button.ghost { background: transparent; color: var(--neon); border: 1px solid var(--neon-dim); }
+  .panel button.ghost:hover { background: rgba(84, 230, 200, 0.12); }
+  .panel .footer { margin-top: 18px; font-size: 10.5px; letter-spacing: 0.26em; color: #5f7387; }
+  .panel.busted { border-top-color: var(--hot); }
+  .panel.busted h2, .panel.wasted h2 { color: #ff8fa3; }
+  .panel.busted button, .panel.wasted button { background: var(--hot); color: #12060a; }
 </style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
 </head>
 <body>
-<canvas id="game" aria-label="Block Dodger: move the paddle left and right to dodge falling blocks and catch coins"></canvas>
+<canvas id="scene" aria-label="PORT MERIDIAN: an open-world crime game on foot and by car"></canvas>
+<div id="ui" class="hidden"></div>
+<div id="overlay"></div>
 <p id="status" role="status" aria-live="polite"></p>
 <script type="module" src="./src/main.js"></script>
 </body>

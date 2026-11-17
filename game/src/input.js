@@ -1,53 +1,115 @@
-// Keyboard and pointer input. Held keys give a steering direction; one-shot presses (start or
-// restart, pause) are queued as bit flags and taken once by the loop, so a press between two
-// frames is never lost and never counted twice.
+// Keyboard, mouse, pointer lock and the shot-preset input overrides.
+const KEY_MAP = {
+  KeyW: 'forward', ArrowUp: 'forward',
+  KeyS: 'back', ArrowDown: 'back',
+  KeyA: 'left', ArrowLeft: 'left',
+  KeyD: 'right', ArrowRight: 'right',
+  ShiftLeft: 'sprint', ShiftRight: 'sprint',
+  Space: 'jump',
+  KeyE: 'enter',
+  KeyF: 'punch',
+  KeyR: 'reload',
+  KeyP: 'pause', Escape: 'pause',
+  KeyM: 'mute',
+  KeyH: 'horn',
+  Digit1: 'weapon1',
+  Digit2: 'weapon2',
+};
 
-export const ACTION_CONFIRM = 1;
-export const ACTION_PAUSE = 2;
+export class Input {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.held = new Set();
+    this.pressed = new Set();
+    this.mouseDown = false;
+    this.mousePressed = false;
+    this.dx = 0;
+    this.dy = 0;
+    this.locked = false;
+    this.dragging = false;
+    this.enabled = true;
+    this.override = null;
 
-const LEFT = new Set(['ArrowLeft', 'KeyA']);
-const RIGHT = new Set(['ArrowRight', 'KeyD']);
-const CONFIRM = new Set(['Space', 'Enter']);
-const PAUSE = new Set(['KeyP', 'Escape']);
+    window.addEventListener('keydown', (e) => {
+      if (!this.enabled) return;
+      const action = KEY_MAP[e.code];
+      if (action && !e.repeat) this.pressed.add(action);
+      if (action) {
+        this.held.add(action);
+        if (e.code === 'Space' || e.code === 'Escape') e.preventDefault();
+      }
+      if (e.code === 'KeyM') this.pressed.add('mute');
+    });
+    window.addEventListener('keyup', (e) => {
+      const action = KEY_MAP[e.code];
+      if (action) this.held.delete(action);
+    });
+    window.addEventListener('blur', () => {
+      this.held.clear();
+      this.mouseDown = false;
+    });
 
-export function createInput(target) {
-  let left = false;
-  let right = false;
-  let actions = 0;
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 0) {
+        this.mouseDown = true;
+        this.mousePressed = true;
+      }
+      if (!this.locked) {
+        this.dragging = true;
+        this.lastX = e.clientX;
+        this.lastY = e.clientY;
+        if (canvas.requestPointerLock) canvas.requestPointerLock();
+      }
+    });
+    window.addEventListener('mouseup', () => {
+      this.mouseDown = false;
+      this.dragging = false;
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (this.locked) {
+        this.dx += e.movementX;
+        this.dy += e.movementY;
+      } else if (this.dragging) {
+        this.dx += e.clientX - (this.lastX ?? e.clientX);
+        this.dy += e.clientY - (this.lastY ?? e.clientY);
+        this.lastX = e.clientX;
+        this.lastY = e.clientY;
+      }
+    });
+    document.addEventListener('pointerlockchange', () => {
+      this.locked = document.pointerLockElement === canvas;
+    });
+  }
 
-  window.addEventListener('keydown', (event) => {
-    if (LEFT.has(event.code)) left = true;
-    else if (RIGHT.has(event.code)) right = true;
-    else if (CONFIRM.has(event.code)) {
-      if (!event.repeat) actions |= ACTION_CONFIRM;
-    } else if (PAUSE.has(event.code)) {
-      if (!event.repeat) actions |= ACTION_PAUSE;
-    } else return;
-    event.preventDefault();
-  });
-  window.addEventListener('keyup', (event) => {
-    if (LEFT.has(event.code)) left = false;
-    else if (RIGHT.has(event.code)) right = false;
-  });
-  // A key released while the tab is hidden never sends keyup: let go of everything on blur.
-  window.addEventListener('blur', () => {
-    left = false;
-    right = false;
-  });
-  target.addEventListener('pointerdown', () => {
-    actions |= ACTION_CONFIRM;
-  });
+  down(action) {
+    if (this.override) return Boolean(this.override[action]);
+    return this.held.has(action);
+  }
 
-  return {
-    /** -1 for left, 1 for right, 0 for neither or both. */
-    direction() {
-      return (right ? 1 : 0) - (left ? 1 : 0);
-    },
-    /** The one-shot presses since the last call, as ACTION_* flags. */
-    takeActions() {
-      const taken = actions;
-      actions = 0;
-      return taken;
-    },
-  };
+  hit(action) {
+    if (this.override) return Boolean(this.override[action]);
+    return this.pressed.has(action);
+  }
+
+  get fire() {
+    return this.override ? Boolean(this.override.fire) : this.mouseDown;
+  }
+
+  axis() {
+    const x = (this.down('right') ? 1 : 0) - (this.down('left') ? 1 : 0);
+    const y = (this.down('back') ? 1 : 0) - (this.down('forward') ? 1 : 0);
+    return { x, y };
+  }
+
+  consumeMouse() {
+    const delta = { x: this.dx, y: this.dy };
+    this.dx = 0;
+    this.dy = 0;
+    return delta;
+  }
+
+  endFrame() {
+    this.pressed.clear();
+    this.mousePressed = false;
+  }
 }
