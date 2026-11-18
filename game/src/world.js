@@ -294,10 +294,16 @@ export class World {
   buildGround() {
     const geo = new THREE.PlaneGeometry(900, 900, 1, 1);
     geo.rotateX(-Math.PI / 2);
+    const tex = streetTexture();
     const mat = new THREE.MeshStandardMaterial({
-      map: streetTexture(),
-      roughness: 0.52,
-      metalness: 0.22,
+      map: tex,
+      // the same plan as a faint emissive map: wet asphalt and lane paint stay readable
+      // at night, the way retroreflective paint does, without washing the frame out
+      emissiveMap: tex,
+      emissive: new THREE.Color(0xa8c4e0),
+      emissiveIntensity: 0.1,
+      roughness: 0.5,
+      metalness: 0.24,
       color: 0xffffff,
     });
     this.ground = new THREE.Mesh(geo, mat);
@@ -967,6 +973,10 @@ export class World {
         b.mesh.material.emissiveIntensity = 0.55 + night * 0.55 + (this.glowScale - 1) * 0.5;
       }
     }
+    // the ground's own brick of light: faint by day, a wet sheen at night
+    if (this.ground) {
+      this.ground.material.emissiveIntensity = 0.05 + night * 0.42 + (this.glowScale - 1) * 0.22;
+    }
   }
 
   // Brighter at night for the staged night frame: sky, fog, sun, lights, exposure and glow.
@@ -980,6 +990,71 @@ export class World {
     if (this.scene.fog) this.scene.fog.color.lerp(new THREE.Color(0x33405e), 0.3 * amount);
     this.water.material.color.lerp(new THREE.Color(0x1a4055), 0.4 * amount);
     this.setTimeOfDay(this.minutes);
+  }
+
+  // A pool of warm light on the street, for staging a lamp-lit stretch.
+  addStreetLampAt(x, z, warm = true) {
+    if (!this.stageLights) {
+      this.stageLights = new THREE.Group();
+      this.root.add(this.stageLights);
+    }
+    const grp = new THREE.Group();
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0x2a2f38, roughness: 0.8, metalness: 0.4 });
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.18, 8.2, 6), poleMat);
+    pole.position.y = 4.1;
+    grp.add(pole);
+    const head = new THREE.Mesh(
+      new THREE.BoxGeometry(0.75, 0.22, 0.44),
+      new THREE.MeshBasicMaterial({ color: warm ? 0xffd9a0 : 0xd8f0ff }),
+    );
+    head.position.y = 8.0;
+    grp.add(head);
+    grp.position.set(x, 0, z);
+    this.stageLights.add(grp);
+
+    const halo = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: glowTexture('rgba(255,220,160,0.9)', 'rgba(255,180,110,0)'),
+        color: warm ? 0xffd2a0 : 0xd8f0ff,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        opacity: 0.75,
+      }),
+    );
+    halo.scale.setScalar(7.5);
+    halo.position.set(x, 8.0, z);
+    this.stageLights.add(halo);
+
+    const pool = new THREE.Mesh(
+      new THREE.PlaneGeometry(19, 19),
+      new THREE.MeshBasicMaterial({
+        map: glowTexture('rgba(255,205,150,0.65)', 'rgba(255,180,110,0)'),
+        color: warm ? 0xffc98c : 0xbcd8f0,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        opacity: 0.4,
+      }),
+    );
+    pool.rotation.x = -Math.PI / 2;
+    pool.position.set(x, 0.07, z);
+    this.stageLights.add(pool);
+
+    const light = new THREE.PointLight(warm ? 0xffb877 : 0xa8d0ff, 150, 38, 2);
+    light.position.set(x, 7.4, z);
+    this.stageLights.add(light);
+    return grp;
+  }
+
+  clearStageLights() {
+    if (!this.stageLights) return;
+    for (const child of [...this.stageLights.children]) {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material && child.material.dispose) child.material.dispose();
+    }
+    this.root.remove(this.stageLights);
+    this.stageLights = null;
   }
 
   resetLift() {

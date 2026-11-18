@@ -118,6 +118,7 @@ export class MissionSystem {
 
   // The position the beacon should currently mark.
   targetPos() {
+    if (this.shotTarget) return this.shotTarget;
     const d = this.current;
     if (!d || !this.active) return null;
     const step = this.currentStep;

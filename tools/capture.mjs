@@ -240,9 +240,14 @@ if (isMain) {
   const page = await launch({ width, height });
   try {
     await page.goto(url);
+    // a staged shot sets __shotReady; the title screen shows an overlay. Wait for whichever
+    // this URL is meant to produce, rather than for either.
+    const staged = /[?&]shot=/.test(url);
     const ready = await page.waitFor(
-      'window.__shotReady === true || document.querySelector("#overlay.show") !== null',
-      40000,
+      staged
+        ? 'window.__shotReady === true || !!window.__shotError'
+        : 'window.__shotReady === true || document.querySelector("#overlay.show") !== null',
+      60000,
     );
     await new Promise((r) => setTimeout(r, waitMs));
     const size = await page.screenshot(outfile, 90);

@@ -649,6 +649,12 @@ export class Game {
   }
 
   updateCamera(dt) {
+    if (this.shotCamera) {
+      // the staged frame is posed by staging, not by easing
+      this.camera.position.copy(this.camPos);
+      this.camera.lookAt(this.camLook);
+      return;
+    }
     const car = this.player.car;
     const mouse = this.input.takeMouse();
     if (car) {
@@ -827,7 +833,9 @@ export class Game {
     hud.setStars(this.police.stars, this.police.stars >= 4 || this.police.arrestT > 0.4);
     hud.setClock(this.clockMinutes);
     hud.setWeapon(p.weapon === 'pistol' ? 'PISTOL' : 'FISTS', p.weapon === 'pistol' ? p.ammoLabel : '— / —');
-    if (!this.missions.complete) {
+    if (this.shotObjective) {
+      hud.setObjective(this.shotObjective.job, this.shotObjective.name, this.shotObjective.step);
+    } else if (!this.missions.complete) {
       hud.setObjective(this.missions.jobLabel, this.missions.jobName, this.missions.objectiveText);
     } else {
       hud.setObjective('ROOKIE TO KINGPIN', 'THE CITY IS YOURS', this.missions.objectiveText);
@@ -892,6 +900,42 @@ export class Game {
     }
     this.updateCamera(0.016);
     this.updateHud();
+  }
+
+  // A deterministic camera for the screenshot staging: no easing, no drift.
+  // `track` pulls the camera out along the subject's lateral axis for a side-on frame,
+  // which is the only way to get a chasing car and the cars behind it into one shot.
+  applyShotCamera(spec) {
+    if (spec.pos && spec.target) {
+      this.camPos.set(spec.pos.x, spec.pos.y, spec.pos.z);
+      this.camLook.set(spec.target.x, spec.target.y, spec.target.z);
+      this.camera.position.copy(this.camPos);
+      this.camera.lookAt(this.camLook);
+      this.camera.fov = spec.fov ?? 62;
+      this.camera.updateProjectionMatrix();
+      return;
+    }
+    const car = this.player.car;
+    const baseYaw = spec.yaw !== undefined ? spec.yaw : car ? car.heading : this.player.heading;
+    const anchor = spec.anchor || (car ? { x: car.x, z: car.z } : { x: this.player.x, z: this.player.z });
+    const back = spec.back ?? 8.4;
+    const up = spec.up ?? 3.3;
+    const side = spec.side ?? 0;
+    const track = spec.track ?? 0;
+    const fx = Math.sin(baseYaw);
+    const fz = Math.cos(baseYaw);
+    const rx = Math.cos(baseYaw);
+    const rz = -Math.sin(baseYaw);
+    const lookX = anchor.x + fx * (spec.lookAhead ?? 2.0);
+    const lookZ = anchor.z + fz * (spec.lookAhead ?? 2.0);
+    const cx = anchor.x - fx * back + rx * (side + track);
+    const cz = anchor.z - fz * back + rz * (side + track);
+    this.camPos.set(cx, up, cz);
+    this.camLook.set(lookX, spec.lookY ?? 1.25, lookZ);
+    this.camera.position.copy(this.camPos);
+    this.camera.lookAt(this.camLook);
+    this.camera.fov = spec.fov ?? 62;
+    this.camera.updateProjectionMatrix();
   }
 
   renderOnce() {
