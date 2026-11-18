@@ -328,18 +328,19 @@ export class Game {
     const target = car ? car.pos : new THREE.Vector3(this.player.pos.x, this.player.y, this.player.pos.z);
 
     if (car) {
-      // Chase camera: behind the car, slightly high, with lag and speed pull-back.
+      // Chase camera: tucked in behind the car and low to the road, with lag. Speed moves it
+      // back a little, not a lot, so the car always stays a readable size on screen.
       const speed = Math.abs(car.speed);
-      const dist = 8.2 + speed * 0.16;
-      const height = 3.6 + speed * 0.03;
+      const dist = 6.9 + speed * 0.085;
+      const height = 2.75 + speed * 0.018;
       const back = car.heading + Math.PI;
       const want = new THREE.Vector3(
         target.x + Math.sin(back) * dist,
         height,
         target.z + Math.cos(back) * dist,
       );
-      this.cameraPos.lerp(want, Math.min(1, 6 * dt));
-      this.camTarget.lerp(new THREE.Vector3(target.x, 1.1, target.z), Math.min(1, 10 * dt));
+      this.cameraPos.lerp(want, Math.min(1, 7 * dt));
+      this.camTarget.lerp(new THREE.Vector3(target.x, 1.0, target.z), Math.min(1, 11 * dt));
       const shake = this.vehicles.shake;
       this.camera.position.copy(this.cameraPos);
       if (shake > 0.01) {
@@ -634,6 +635,7 @@ export class Game {
       police: this.police,
       missions: this.missions,
       vehicles: this.vehicles,
+      clock: this.clockMinutes,
       game: this,
     });
     this.hitmarkTimer = Math.max(0, this.hitmarkTimer - dt);

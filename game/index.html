@@ -43,7 +43,15 @@
   #stars .star.on.pulse { color: #fff3c4; }
 
   #hud-right { text-align: right; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
-  #clock { font-size: 20px; font-weight: 700; letter-spacing: 0.1em; color: #cfe6ff; text-shadow: 0 2px 8px #000; }
+  #clock {
+    display: flex; align-items: baseline; justify-content: flex-end; gap: 9px;
+    font-size: 20px; font-weight: 700; letter-spacing: 0.1em; color: #cfe6ff; text-shadow: 0 2px 8px #000;
+  }
+  #clock-time { font-variant-numeric: tabular-nums; }
+  #clock-phase {
+    font-size: 10px; letter-spacing: 0.24em; font-weight: 700;
+    color: var(--neon); opacity: 0.9;
+  }
   #weapon {
     font-size: 12px; letter-spacing: 0.14em; padding: 6px 10px; border: 1px solid var(--line);
     background: rgba(5, 9, 14, 0.7); border-radius: 3px;
