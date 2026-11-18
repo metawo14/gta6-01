@@ -1,0 +1,22 @@
+# build output and scratch folders
+out/
+output/
+dist/
+tmp/
+
+# node
+node_modules/
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+
+# tool scratch
+tools/.cache/
+*.log
+
+# editor and OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
